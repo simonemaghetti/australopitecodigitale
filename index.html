@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Diario - Refined Glitch Edition</title>
+    <style>
+        html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+        body { font-family: 'Courier New', Courier, monospace; cursor: none; }
+
+        #site-title {
+            position: fixed; top: 15px; left: 15px;
+            font-family: 'Helvetica', Arial, sans-serif;
+            font-size: 20px; font-weight: bold; color: #fff;
+            text-transform: lowercase; z-index: 2000; 
+            user-select: none; line-height: 1; white-space: nowrap;
+            pointer-events: auto;
+            /* Transizione fluida per il movimento */
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .title-ghost {
+            position: fixed; top: 15px; left: 15px;
+            font-family: 'Helvetica', Arial, sans-serif;
+            font-size: 20px; font-weight: bold;
+            color: rgba(255, 255, 255, 0.2);
+            text-transform: lowercase; z-index: 1999;
+            pointer-events: none; white-space: nowrap;
+        }
+
+        #crosshair {
+            position: fixed; pointer-events: none; font-size: 18px;
+            z-index: 1000; transform: translate(-50%, -50%);
+            text-shadow: 0 0 10px #fff; color: rgba(255,255,255,0.7);
+        }
+
+        .row-link {
+            position: fixed; left: 0; width: 100vw;
+            white-space: pre; font-size: 11px; line-height: 9px;
+            margin: 0; padding: 0; text-decoration: none;
+            color: inherit; user-select: none; z-index: 10;
+            overflow: hidden; pointer-events: auto;
+        }
+
+        .row-1 { color: #72A0C1; } .row-2 { color: #4895EF; }
+        .row-3 { color: #4361EE; } .row-4 { color: #3A56AF; }
+        .row-5 { color: #560BAD; } .row-6 { color: #7209B7; }
+        .row-7 { color: #B5179E; }
+    </style>
+</head>
+<body> 
+<div id="site-title"></div>
+<div id="crosshair">┼</div>
+
+<a class="row-link row-1" id="row-0" href="memyselfai"></a>
+<a class="row-link row-2" id="row-1" href="kinetictype/index.html"></a>
+<a class="row-link row-3" id="row-2" href="alfabeto/index.html"></a>
+<a class="row-link row-4" id="row-3" href="archiviodigitalefoto"></a>
+<a class="row-link row-5" id="row-4" href="TAKEATRIP"></a>
+<a class="row-link row-6" id="row-5" href="esercizio6.html"></a>
+<a class="row-link row-7" id="row-6" href="esercizio7.html"></a>
+
+<script>
+    const titleElement = document.getElementById('site-title');
+    const finalTitle = "diario di un australopiteco digitale";
+    const hoverTitle = "taking a byte out of the void";
+    const glitchChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+-=[]{}';
+    let isTransitioning = false;
+
+    let audioCtx;
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    window.addEventListener('mousemove', initAudio, { once: true });
+
+    // --- SOUND DESIGN REFINATO (PORTALE DISCRETO) ---
+    function playRefinedSound(isClosing = false) {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        const now = audioCtx.currentTime;
+        
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        
+        // Se chiude, le frequenze scendono invece di salire
+        const freqStart1 = isClosing ? 523.25 : 261.63;
+        const freqEnd1 = isClosing ? 130.81 : 523.25;
+        const freqStart2 = isClosing ? 783.99 : 392.00;
+        const freqEnd2 = isClosing ? 196.00 : 783.99;
+
+        osc1.frequency.setValueAtTime(freqStart1, now); 
+        osc1.frequency.exponentialRampToValueAtTime(freqEnd1, now + 0.4);
+        
+        osc2.frequency.setValueAtTime(freqStart2, now);
+        osc2.frequency.exponentialRampToValueAtTime(freqEnd2, now + 0.4);
+
+        filter.type = 'lowpass';
+        filter.Q.value = 4; 
+        filter.frequency.setValueAtTime(isClosing ? 2000 : 200, now);
+        filter.frequency.exponentialRampToValueAtTime(isClosing ? 100 : 2000, now + 0.4);
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.025, now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc1.start(); osc2.start();
+        osc1.stop(now + 1.2); osc2.stop(now + 1.2);
+    }
+
+    function playRowHoverSound(index) {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        const scale = [440, 493.88, 554.37, 659.25, 739.99, 880, 987.77];
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(scale[index] || 440, now);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(100, now);
+        filter.frequency.exponentialRampToValueAtTime(3000, now + 0.1);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.04, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(now + 1.2);
+    }
+
+    function scrambleText(targetText, element) {
+        let frame = 0;
+        const maxFrames = targetText.length * 1.5;
+        function update() {
+            let output = "";
+            for (let i = 0; i < targetText.length; i++) {
+                if (targetText[i] === " ") { output += " "; continue; }
+                if (frame > i * 1.5) output += targetText[i];
+                else output += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+            }
+            element.textContent = output;
+            if (frame < maxFrames) { frame++; requestAnimationFrame(update); }
+        }
+        requestAnimationFrame(update);
+    }
+
+    // Inizializzazione testo
+    scrambleText(finalTitle, titleElement);
+
+    function createGhostTrail(xOffset, text, isReturning = false) {
+        const ghost = document.createElement('div');
+        ghost.className = 'title-ghost';
+        ghost.textContent = text;
+        // Se torna, la scia deve essere calcolata rispetto alla posizione di arrivo (0)
+        ghost.style.transform = `translateX(${xOffset}px)`;
+        ghost.style.color = "rgba(255, 255, 255, 0.15)";
+        document.body.appendChild(ghost);
+        let opacity = 0.2;
+        const fade = setInterval(() => {
+            opacity -= 0.02;
+            ghost.style.opacity = opacity;
+            ghost.style.filter = `blur(${ (0.2 - opacity) * 15 }px)`;
+            if (opacity <= 0) { clearInterval(fade); ghost.remove(); }
+        }, 20);
+    }
+
+    // --- GESTIONE HOVER TITOLO ---
+    titleElement.addEventListener('mouseenter', () => {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        initAudio(); 
+        playRefinedSound(false); // Suono apertura
+        titleElement.style.transform = 'translateX(40px)';
+        scrambleText(hoverTitle, titleElement);
+        
+        // Scia di andata
+        let step = 0;
+        const trailInterval = setInterval(() => {
+            createGhostTrail(step * 6.5, hoverTitle);
+            step++;
+            if(step >= 6) clearInterval(trailInterval);
+        }, 40);
+    });
+
+    titleElement.addEventListener('mouseleave', () => {
+        initAudio();
+        playRefinedSound(true); // Suono chiusura
+        titleElement.style.transform = 'translateX(0px)';
+        scrambleText(finalTitle, titleElement);
+        
+        // Scia di ritorno
+        let step = 6;
+        const trailInterval = setInterval(() => {
+            createGhostTrail(step * 6.5, finalTitle);
+            step--;
+            if(step <= 0) clearInterval(trailInterval);
+        }, 40);
+
+        setTimeout(() => { isTransitioning = false; }, 600);
+    });
+
+    // --- LOGICA RIGHE ---
+    const rowElements = Array.from(document.querySelectorAll('.row-link'));
+    const textTextures = {};
+    const labels = ["ME, MYSELF AND AI", "KINETIC TYPOGRAPHY", "ALPHABET", "DIGITAL GALLERY", "TAKE A TRIP", "ESERCIZIO 6", "ESERCIZIO 7"];
+
+    function createTextTexture(text) {
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.font = 'bold 70px Helvetica';
+        const metrics = tempCtx.measureText(text);
+        tempCanvas.width = Math.ceil(metrics.width) + 120; tempCanvas.height = 120;
+        tempCtx.fillStyle = '#000'; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tempCtx.fillStyle = '#fff'; tempCtx.font = 'bold 70px Helvetica';
+        tempCtx.textBaseline = 'middle'; tempCtx.fillText(text, 60, 60);
+        return { imageData: tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height), width: tempCanvas.width, height: tempCanvas.height };
+    }
+
+    labels.forEach((label, i) => { 
+        textTextures[i + 1] = createTextTexture(label); 
+        rowElements[i].addEventListener('mouseenter', () => { initAudio(); playRowHoverSound(i); });
+    });
+
+    let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    let lastMouse = { x: mouse.x, y: mouse.y };
+    let fluidTarget = 0;
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX; mouse.y = e.clientY;
+        const dx = mouse.x - lastMouse.x; const dy = mouse.y - lastMouse.y;
+        fluidTarget += Math.sqrt(dx*dx + dy*dy) * 0.05;
+        lastMouse = {x: mouse.x, y: mouse.y};
+    });
+
+    function updateRowPositions() {
+        const spacing = (window.innerHeight - 180) / (rowElements.length - 1);
+        rowElements.forEach((el, r) => { 
+            el.style.top = `${100 + (r * spacing)}px`; 
+            el.style.height = `162px`; el.style.transform = `translateY(-50%)`; 
+        });
+    }
+    window.addEventListener('resize', updateRowPositions);
+    updateRowPositions();
+
+    let frame = 0;
+    let scrollPos = Array(7).fill(0);
+
+    function render() {
+        fluidTarget *= 0.93;
+        document.getElementById('crosshair').style.left = `${mouse.x}px`;
+        document.getElementById('crosshair').style.top = `${mouse.y}px`;
+        const charWidth = 6.2;
+        const cols = Math.max(20, Math.ceil(window.innerWidth / charWidth));
+        const time = frame * 0.02;
+
+        for (let r = 0; r < rowElements.length; r++) {
+            const texture = textTextures[r + 1];
+            const dir = (r % 2 === 0) ? 1 : -1;
+            scrollPos[r] += (1.2 + (r * 0.12)) * dir + (fluidTarget * 0.15) * dir;
+            const rect = rowElements[r].getBoundingClientRect();
+            const isRowHovered = mouse.y >= rect.top && mouse.y <= rect.bottom;
+            let output = "";
+            for (let y = 0; y < 18; y++) {
+                let line = "";
+                for (let x = 0; x < cols; x++) {
+                    const charX = (x / cols) * window.innerWidth;
+                    const influence = isRowHovered ? Math.exp(-Math.abs(charX - mouse.x) / 130) : 0;
+                    const warpX = x + (influence * 28 * Math.sin(time * 1.5 + x * 0.2));
+                    const textureX = (warpX * 2.2) + scrollPos[r];
+                    const textureY = (y / 18) * texture.height;
+                    const tx = ((textureX % texture.width) + texture.width) % texture.width;
+                    const index = (Math.floor(textureY) * texture.width + Math.floor(tx)) * 4;
+                    if (texture.imageData.data[index] > 128) {
+                        line += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+                    } else {
+                        line += (influence < 0.1 && Math.random() > 0.9995) ? "·" : " ";
+                    }
+                }
+                output += line + "\n";
+            }
+            rowElements[r].textContent = output;
+        }
+        frame++;
+        requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+</script>
+</body>
+</html>

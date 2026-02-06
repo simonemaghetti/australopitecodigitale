@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>US.ARCHIVE — Digital Gallery</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: white; touch-action: none; }
+        
+        /* Canvas positioning */
+        canvas { display: block; position: absolute; top: 0; left: 0; }
+
+        #menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 100; background: rgba(20,20,20,0.8); border: 1px solid #333; color: white; padding: 10px 15px; border-radius: 5px; display: none; cursor: pointer; }
+        
+        #sidebar { position: absolute; top: 0; left: 0; bottom: 0; width: 300px; background: rgba(10, 10, 10, 0.98); border-right: 1px solid #222; z-index: 20; padding: 40px 30px; display: flex; flex-direction: column; box-sizing: border-box; transition: transform 0.4s cubic-bezier(0.77, 0, 0.175, 1); }
+        
+        .header-container { margin-bottom: 40px; border-left: 3px solid #fff; padding-left: 15px; }
+        h1 { font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; margin: 0; line-height: 1; color: #fff; }
+        .subtitle { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 8px; color: #777; font-weight: 400; }
+        
+        .layout-selector { display: flex; gap: 10px; margin-bottom: 40px; }
+        .btn-layout { flex: 1; display: flex; justify-content: center; align-items: center; padding: 12px; background: #1a1a1a; border: 1px solid #333; color: #666; cursor: pointer; transition: 0.3s; border-radius: 4px; }
+        .btn-layout svg { width: 18px; height: 18px; fill: currentColor; }
+        .btn-layout:hover { background: #333; color: white; }
+        .btn-layout.active { border-color: #fff; color: white; background: #222; }
+        
+        nav { border-top: 1px solid #222; padding-top: 30px; overflow-y: auto; flex-grow: 1; }
+        nav ul { list-style: none; padding: 0; margin: 0; }
+        nav li { margin-bottom: 18px; font-size: 11px; font-weight: 300; color: #555; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1.5px; }
+        nav li:hover { color: #fff; }
+        nav li.active { color: white; font-weight: 700; border-left: 2px solid #fff; padding-left: 10px; }
+        
+        #photo-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        .image-container { position: relative; max-width: 80%; max-height: 85%; display: flex; flex-direction: column; align-items: center; }
+        #photographer-name { align-self: flex-start; margin-bottom: 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; color: #aaa; }
+        #full-image { display: block; max-width: 100%; max-height: 75vh; border: 1px solid #333; pointer-events: none; }
+        #close-btn { position: absolute; top: -45px; right: 0; font-size: 30px; color: #fff; cursor: pointer; transition: 0.3s; }
+        .nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); font-size: 40px; color: rgba(255,255,255,0.3); cursor: pointer; z-index: 1010; padding: 20px; }
+        .arrow-left { left: -100px; }
+        .arrow-right { right: -100px; }
+
+        @media (max-width: 1024px) { 
+            #menu-toggle { display: block; } 
+            #sidebar { width: 280px; transform: translateX(-100%); } 
+            #sidebar.open { transform: translateX(0); } 
+        }
+    </style>
+</head>
+<body>
+
+    <button id="menu-toggle">☰ MENU</button>
+
+    <aside id="sidebar">
+        <div class="header-container">
+            <h1>US.ARCHIVE</h1>
+            <div class="subtitle">Digital Gallery of American Photographers</div>
+        </div>
+        <div class="layout-selector">
+            <button id="btn-sphere" class="btn-layout active" onclick="setLayout('sphere')">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+            <button id="btn-grid" class="btn-layout" onclick="setLayout('rows')">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" fill="currentColor"/><rect x="14" y="3" width="7" height="7" fill="currentColor"/><rect x="3" y="14" width="7" height="7" fill="currentColor"/><rect x="14" y="14" width="7" height="7" fill="currentColor"/></svg>
+            </button>
+        </div>
+        <nav>
+            <ul id="photographer-list">
+                <li onclick="loadAll(this)" id="all-btn" class="active">● All Authors</li>
+                <li onclick="loadPhotographer('alex_webb', 'Alex Webb', 'Alex_Webb', 53, this)">Alex Webb</li>
+                <li onclick="loadPhotographer('steve_mccurry', 'Steve McCurry', 'Steve_McCurry', 42, this)">Steve McCurry</li>
+                <li onclick="loadPhotographer('carolyn_drake', 'Carolyn Drake', 'Carolyn_Drake', 57, this)">Carolyn Drake</li>
+                <li onclick="loadPhotographer('peter_van_agtmael', 'Peter van Agtmael', 'Peter_Van_Agtmael', 50, this)">Peter van Agtmael</li>
+                <li onclick="loadPhotographer('bruce_gilden', 'Bruce Gilden', 'Bruce_Gilden', 34, this)">Bruce Gilden</li>
+                <li onclick="loadPhotographer('burt_glinn', 'Burt Glinn', 'Burt_Glinn', 34, this)">Burt Glinn</li>
+                <li onclick="loadPhotographer('paul_fusco', 'Paul Fusco', 'Paul_Fusco', 43, this)">Paul Fusco</li>
+                <li onclick="loadPhotographer('eve_arnold', 'Eve Arnold', 'Eve_Arnold', 55, this)">Eve Arnold</li>
+            </ul>
+        </nav>
+    </aside>
+
+    <div id="photo-overlay">
+        <div class="image-container">
+            <div id="photographer-name"></div>
+            <span id="close-btn">&times;</span>
+            <div class="nav-arrow arrow-left" onclick="navigatePhoto(-1)">&#10229;</div>
+            <div class="nav-arrow arrow-right" onclick="navigatePhoto(1)">&#10230;</div>
+            <img id="full-image" src="">
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('photo-overlay');
+        const overlayImg = document.getElementById('full-image');
+        const nameDisplay = document.getElementById('photographer-name');
+        
+        let currentPhotographerGroup = [];
+        let currentIndex = 0;
+        let pointerDownTime = 0;
+        let currentLayout = 'sphere';
+
+        // --- AUDIO ENGINE ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playDelicateSwoosh() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const bufferSize = 2 * audioCtx.sampleRate, buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate), output = buffer.getChannelData(0);
+            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + white * 0.0555179; b1 = 0.99332 * b1 + white * 0.0750759; b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856; b4 = 0.55000 * b4 + white * 0.5329522; b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11; b6 = white * 0.115926;
+            }
+            const source = audioCtx.createBufferSource(); source.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 0.5;
+            const gain = audioCtx.createGain(); source.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime, duration = 1.3;
+            filter.frequency.setValueAtTime(40, now); filter.frequency.exponentialRampToValueAtTime(1000, now + duration * 0.4); filter.frequency.exponentialRampToValueAtTime(40, now + duration);
+            gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.07, now + duration * 0.3); gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            source.start(now); source.stop(now + duration);
+        }
+
+        // --- THREE.JS ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        // Funzione per gestire le dimensioni e il centering
+        function updateLayout() {
+            const isDesktop = window.innerWidth > 1024;
+            const sidebarWidth = isDesktop ? 300 : 0;
+            const availableWidth = window.innerWidth - sidebarWidth;
+            
+            renderer.setSize(availableWidth, window.innerHeight);
+            renderer.domElement.style.marginLeft = sidebarWidth + "px";
+            
+            camera.aspect = availableWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = true;
+
+        let photoGroup = new THREE.Group();
+        scene.add(photoGroup);
+        const textureLoader = new THREE.TextureLoader();
+        const raycaster = new THREE.Raycaster();
+        const mouseVector = new THREE.Vector2();
+        
+        let isDraggingImage = false, selectedMesh = null, dragPlane = new THREE.Plane(), intersection = new THREE.Vector3(), offset = new THREE.Vector3();
+
+        function setLayout(type) {
+            if (type === currentLayout) return;
+            playDelicateSwoosh();
+            currentLayout = type;
+            document.querySelectorAll('.btn-layout').forEach(b => b.classList.remove('active'));
+            document.getElementById(type === 'sphere' ? 'btn-sphere' : 'btn-grid').classList.add('active');
+
+            if (type === 'rows') {
+                controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+                controls.enableRotate = false;
+                gsap.to(camera.position, { x: 0, y: 0, z: 180, duration: 1.5 });
+                gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 1.5 });
+                gsap.to(photoGroup.rotation, { x: 0, y: 0, z: 0, duration: 1.5 });
+            } else {
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+                controls.enableRotate = true;
+                gsap.to(camera.position, { x: 0, y: 0, z: 165, duration: 1.5 });
+            }
+
+            photoGroup.children.forEach((mesh) => {
+                const targetPos = (type === 'rows') ? mesh.userData.gridPos : mesh.userData.spherePos;
+                gsap.to(mesh.position, { x: targetPos.x, y: targetPos.y, z: targetPos.z, duration: 1.8, ease: "power2.inOut" });
+                if (type === 'sphere') {
+                    const tempObj = new THREE.Object3D();
+                    tempObj.position.copy(mesh.userData.spherePos);
+                    tempObj.lookAt(0, 0, 0);
+                    gsap.to(mesh.rotation, { x: tempObj.rotation.x, y: tempObj.rotation.y, z: tempObj.rotation.z, duration: 1.8 });
+                } else {
+                    gsap.to(mesh.rotation, { x: 0, y: 0, z: 0, duration: 1.8 });
+                }
+            });
+        }
+
+        // Funzione helper per mappare le coordinate mouse nel viewport ridotto
+        function updateMouseVector(event) {
+            const sidebarWidth = (window.innerWidth > 1024) ? 300 : 0;
+            const availableWidth = window.innerWidth - sidebarWidth;
+            mouseVector.x = ((event.clientX - sidebarWidth) / availableWidth) * 2 - 1;
+            mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onPointerDown(event) {
+            pointerDownTime = Date.now();
+            updateMouseVector(event);
+            raycaster.setFromCamera(mouseVector, camera);
+            
+            const intersects = raycaster.intersectObjects(photoGroup.children);
+            if (intersects.length > 0 && currentLayout === 'rows') {
+                isDraggingImage = true;
+                selectedMesh = intersects[0].object;
+                controls.enabled = false;
+                document.body.style.cursor = 'grabbing';
+                dragPlane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(dragPlane.normal), selectedMesh.position);
+                if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                    offset.copy(intersection).sub(selectedMesh.position);
+                }
+            }
+        }
+
+        function onPointerMove(event) {
+            updateMouseVector(event);
+            
+            if (!isDraggingImage && currentLayout === 'rows') {
+                raycaster.setFromCamera(mouseVector, camera);
+                const intersects = raycaster.intersectObjects(photoGroup.children);
+                document.body.style.cursor = intersects.length > 0 ? 'grab' : 'default';
+            }
+
+            if (isDraggingImage && selectedMesh) {
+                raycaster.setFromCamera(mouseVector, camera);
+                if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                    selectedMesh.position.copy(intersection.sub(offset));
+                    selectedMesh.userData.gridPos.copy(selectedMesh.position);
+                }
+            }
+        }
+
+        function onPointerUp(event) {
+            document.body.style.cursor = (currentLayout === 'rows') ? 'grab' : 'default';
+            
+            if (isDraggingImage) {
+                isDraggingImage = false;
+                selectedMesh = null;
+                controls.enabled = true;
+                return;
+            }
+
+            if (Date.now() - pointerDownTime < 250) {
+                updateMouseVector(event);
+                raycaster.setFromCamera(mouseVector, camera);
+                const hits = raycaster.intersectObjects(photoGroup.children);
+                if (hits.length > 0) {
+                    const m = hits[0].object;
+                    currentPhotographerGroup = photoGroup.children.filter(i => i.userData.photographer === m.userData.photographer).map(i => ({url: i.userData.url, name: i.userData.photographer}));
+                    currentIndex = currentPhotographerGroup.findIndex(p => p.url === m.userData.url);
+                    overlayImg.src = m.userData.url; nameDisplay.innerText = m.userData.photographer;
+                    overlay.style.display = 'flex'; setTimeout(() => overlay.style.opacity = 1, 10);
+                }
+            }
+        }
+
+        function createPhotoMesh(path, name, index, total) {
+            textureLoader.load(path, (tex) => {
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 5), mat);
+                mesh.userData = { url: path, photographer: name, spherePos: new THREE.Vector3(), gridPos: new THREE.Vector3() };
+                
+                const radius = total > 100 ? 55 : 45;
+                const offsetVal = 2/total, inc = Math.PI*(3-Math.sqrt(5)), y = ((index*offsetVal)-1)+(offsetVal/2), r = Math.sqrt(1-Math.pow(y,2)), phi = index*inc;
+                mesh.userData.spherePos.set(Math.cos(phi)*r*radius, y*radius, Math.sin(phi)*r*radius);
+
+                const columns = Math.ceil(Math.sqrt(total * 1.4)), rowsCount = Math.ceil(total / columns), spacingX = 9, spacingY = 7;
+                const col = index % columns, row = Math.floor(index / columns);
+                mesh.userData.gridPos.set(col*spacingX - (columns*spacingX)/2, -(row*spacingY - (rowsCount*spacingY)/2), 0);
+
+                mesh.position.copy(currentLayout === 'sphere' ? mesh.userData.spherePos : mesh.userData.gridPos);
+                if (currentLayout === 'sphere') mesh.lookAt(0,0,0);
+                photoGroup.add(mesh);
+            });
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+
+        function loadPhotographer(id, fullName, prefix, num, el) {
+            resetGallery(); 
+            document.querySelectorAll('nav li').forEach(li => li.classList.remove('active')); 
+            el.classList.add('active');
+            for (let i = 1; i <= num; i++) createPhotoMesh(`fotografi_americani/${id}/${prefix}${i < 10 ? "0" + i : i}.jpg`, fullName, i-1, num);
+        }
+
+        function loadAll(el) {
+            resetGallery(); 
+            if(el) { document.querySelectorAll('nav li').forEach(li => li.classList.remove('active')); el.classList.add('active'); }
+            const pArr = [
+                {id:'alex_webb',name:'Alex Webb',prefix:'Alex_Webb',count:53},
+                {id:'steve_mccurry',name:'Steve McCurry',prefix:'Steve_McCurry',count:42},
+                {id:'carolyn_drake',name:'Carolyn Drake',prefix:'Carolyn_Drake',count:57},
+                {id:'peter_van_agtmael',name:'Peter van Agtmael',prefix:'Peter_Van_Agtmael',count:50},
+                {id:'bruce_gilden',name:'Bruce Gilden',prefix:'Bruce_Gilden',count:34},
+                {id:'burt_glinn',name:'Burt Glinn',prefix:'Burt_Glinn',count:34},
+                {id:'paul_fusco',name:'Paul Fusco',prefix:'Paul_Fusco',count:43},
+                {id:'eve_arnold',name:'Eve Arnold',prefix:'Eve_Arnold',count:55}
+            ];
+            let all = []; pArr.forEach(p => { for(let i=1; i<=p.count; i++) all.push({p:`fotografi_americani/${p.id}/${p.prefix}${i<10?"0"+i:i}.jpg`, n:p.name}); });
+            all.forEach((item, i) => createPhotoMesh(item.p, item.n, i, all.length));
+        }
+
+        function resetGallery() { photoGroup.children.forEach(c => { if(c.material.map) c.material.map.dispose(); c.material.dispose(); c.geometry.dispose(); }); while(photoGroup.children.length > 0) photoGroup.remove(photoGroup.children[0]); photoGroup.rotation.set(0,0,0); }
+        function navigatePhoto(dir) { currentIndex = (currentIndex + dir + currentPhotographerGroup.length) % currentPhotographerGroup.length; overlayImg.src = currentPhotographerGroup[currentIndex].url; nameDisplay.innerText = currentPhotographerGroup[currentIndex].name; }
+        document.getElementById('close-btn').onclick = () => { overlay.style.opacity = 0; setTimeout(() => overlay.style.display = 'none', 300); };
+        document.getElementById('menu-toggle').onclick = () => sidebar.classList.toggle('open');
+        
+        function animate() { 
+            requestAnimationFrame(animate); 
+            if(overlay.style.display !== 'flex' && currentLayout === 'sphere') photoGroup.rotation.y += 0.0006; 
+            controls.update(); 
+            renderer.render(scene, camera); 
+        }
+
+        window.onload = () => { 
+            updateLayout();
+            loadAll(); 
+            animate(); 
+            camera.position.z = 165; 
+        };
+
+        window.onresize = () => { 
+            updateLayout();
+        };
+    </script>
+</body>
+</html>

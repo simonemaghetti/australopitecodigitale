@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>GEOMETRIA_GRIGNANI_OPTIMIZED</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Helvetica', sans-serif; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .box { background: #000; border: 2px solid #fff; padding: 30px; color: #fff; text-align: center; pointer-events: auto; max-width: 500px; }
+        button { background: #fff; border: none; padding: 15px 30px; font-weight: 900; cursor: pointer; margin-top: 20px; text-transform: uppercase; display: block; width: 100%; }
+        button.secondary { background: #444; color: #fff; margin-top: 10px; font-size: 12px; padding: 10px; }
+        #score { position: absolute; top: 30px; left: 30px; color: #fff; font-size: 40px; font-weight: 900; z-index: 50; }
+        #status { font-size: 48px; margin-bottom: 20px; letter-spacing: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="score">00</div>
+<div id="ui">
+    <div class="box">
+        <h1 id="status" style="display: none;">FAILED</h1>
+        <button onclick="startSession()">START</button>
+        <button id="debugBtn" class="secondary" onclick="toggleDebug()">SHOW HITBOX: OFF</button>
+    </div>
+</div>
+
+<canvas id="c"></canvas>
+
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const ui = document.getElementById('ui');
+    const scoreDiv = document.getElementById('score');
+    const statusText = document.getElementById('status');
+    const debugBtn = document.getElementById('debugBtn');
+
+    let active = false;
+    let frames = 0;
+    let score = 0;
+    let isPressing = false;
+    let showDebug = false;
+    
+    let bird = { x: 150, y: 0, v: 0, history: [] };
+    let pipes = [];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.onresize = resize;
+    resize();
+
+    function toggleDebug() {
+        showDebug = !showDebug;
+        debugBtn.innerText = "SHOW HITBOX: " + (showDebug ? "ON" : "OFF");
+    }
+
+    function startSession() {
+        bird.y = canvas.height / 2;
+        bird.v = 0;
+        bird.history = [];
+        pipes = [];
+        score = 0;
+        frames = 0;
+        scoreDiv.innerText = "00";
+        statusText.style.display = 'none';
+        ui.style.display = 'none';
+        active = true;
+    }
+
+    function getIntensity() {
+        if (score <= 5) return { level: 0, name: "CALMO" };
+        if (score <= 15) return { level: 1, name: "DISTORTO" };
+        return { level: 2, name: "PSICHEDELICO" };
+    }
+
+    function drawGrignaniPipe(p) {
+        const intensity = getIntensity();
+        const lineSpeed = intensity.level === 0 ? 0.1 : intensity.level === 1 ? 0.3 : 0.8;
+        const baseLineWidth = intensity.level === 0 ? 1 : intensity.level === 1 ? 1 + Math.sin(frames * 0.1) * 0.5 : intensity.level === 2 ? 1 + Math.sin(frames * 0.2) * 1.5 : 1;
+
+        ctx.strokeStyle = "white";
+        ctx.fillStyle = "white";
+
+        const renderSide = (yStart, height, isBottom) => {
+            ctx.save();
+            if (p.type === 0) {
+                const density = intensity.level === 2 ? 10 : 15;
+                for (let i = -300; i < canvas.width; i += density) {
+                    const move = Math.sin(frames * lineSpeed + i * 0.01) * (20 + intensity.level * 15);
+                    const twist = intensity.level === 2 ? Math.cos(i * 0.02 + frames * 0.1) * 30 : 0;
+                    const verticalWave = Math.sin(frames * 0.08 + i * 0.03) * 10;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + i + move + twist, yStart + verticalWave);
+                    ctx.lineTo(p.x + i - move - twist, yStart + height - verticalWave);
+                    ctx.lineWidth = baseLineWidth * (1 + Math.sin(i * 0.1 + frames * 0.05) * 0.5);
+                    ctx.stroke();
+                }
+            } else if (p.type === 1) {
+                const gridSize = intensity.level === 2 ? 25 : 35;
+                for (let x = -gridSize; x < p.w + gridSize * 2; x += gridSize) {
+                    for (let y = -gridSize; y < height + gridSize * 2; y += gridSize) {
+                        const warp = Math.sin((x + frames * 2) * 0.05) * Math.cos((y + frames * 2) * 0.05) * (10 + intensity.level * 12);
+                        const rotation = intensity.level === 2 ? Math.sin(frames * 0.1 + x * 0.01) * 0.5 : Math.sin(x * 0.02) * 0.2;
+                        const scale = 1 + Math.sin(frames * 0.15 + x * 0.02 + y * 0.02) * 0.3;
+                        ctx.save();
+                        ctx.translate(p.x + x + warp, yStart + y);
+                        ctx.rotate(rotation);
+                        ctx.scale(scale, scale);
+                        if ((Math.floor(x / gridSize) + Math.floor(y / gridSize)) % 2 === 0) {
+                            ctx.fillStyle = "white";
+                            ctx.fillRect(-gridSize/2, -gridSize/2, gridSize, gridSize);
+                        }
+                        ctx.restore();
+                    }
+                }
+            } else if (p.type === 2) {
+                const centerX = p.x + p.w / 2;
+                const centerY = yStart + height / 2;
+                const maxRings = intensity.level === 2 ? 18 : 12;
+                for (let i = 0; i < maxRings; i++) {
+                    const phase = frames * (0.05 + intensity.level * 0.15);
+                    const baseRadius = i * 20 + Math.sin(phase + i * 0.3) * (15 + intensity.level * 25);
+                    const radius = Math.abs(baseRadius);
+                    const pulseWidth = intensity.level === 2 ? 1 + Math.abs(Math.sin(frames * 0.1 + i)) * 3 : baseLineWidth;
+                    if (radius > 0) {
+                        ctx.beginPath();
+                        for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+                            const distort = Math.sin(angle * 5 + frames * 0.1) * (5 + intensity.level * 8);
+                            const x = centerX + Math.cos(angle) * (radius + distort);
+                            const y = centerY + Math.sin(angle) * (radius + distort);
+                            if (angle === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.closePath();
+                        ctx.lineWidth = pulseWidth;
+                        ctx.stroke();
+                    }
+                }
+            } else if (p.type === 3) {
+                const spacing = 8;
+                const offset = intensity.level >= 1 ? Math.sin(frames * 0.1) * 15 : 0;
+                const expansion = 50;
+                for (let i = -expansion; i < p.w + expansion; i += spacing) {
+                    ctx.beginPath();
+                    const wave = Math.sin(i * 0.05 + frames * 0.1) * 10;
+                    ctx.moveTo(p.x + i + wave, yStart - expansion);
+                    ctx.lineTo(p.x + i - wave, yStart + height + expansion);
+                    ctx.stroke();
+                }
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(p.x - expansion, yStart - expansion, p.w + expansion, height + (expansion*2));
+                ctx.clip();
+                ctx.translate(p.x + p.w/2, yStart + height/2);
+                const rotation = intensity.level === 2 ? Math.sin(frames * 0.15) * 0.5 : 0.15;
+                ctx.rotate(rotation);
+                ctx.translate(-p.w/2 + offset, -height/2);
+                for (let i = -expansion; i < p.w + expansion; i += spacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, -expansion);
+                    ctx.lineTo(i, height + expansion);
+                    ctx.lineWidth = baseLineWidth * (1.2 + intensity.level * 0.5);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+        };
+
+        renderSide(0, p.top, false);
+        renderSide(p.top + p.gap, canvas.height - (p.top + p.gap), true);
+
+        if (showDebug) {
+            ctx.save();
+            ctx.strokeStyle = "lime";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(p.x, 0, p.w, p.top);
+            ctx.strokeRect(p.x, p.top + p.gap, p.w, canvas.height - (p.top + p.gap));
+            ctx.strokeStyle = "cyan";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(p.x, p.top, p.w, p.gap);
+            ctx.restore();
+        }
+    }
+
+    function loop() {
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (active) {
+            const intensity = getIntensity();
+            
+            if (isPressing) bird.v -= 0.6;
+            else bird.v += 0.4;
+            
+            bird.v *= 0.96;
+            bird.y += bird.v;
+
+            if (bird.y < 15 || bird.y > canvas.height - 15) {
+                if (frames > 20) {
+                    active = false;
+                    statusText.style.display = 'block';
+                    statusText.innerText = "FAILED";
+                }
+            }
+
+            if (frames % 110 === 0) {
+                const minTop = 100;
+                const maxTop = canvas.height - 350;
+                const safeTop = minTop + Math.random() * (maxTop - minTop);
+                pipes.push({
+                    x: canvas.width,
+                    w: 120,
+                    top: safeTop,
+                    gap: 280,
+                    type: Math.floor(Math.random() * 4),
+                    scored: false
+                });
+            }
+
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                let p = pipes[i];
+                p.x -= 5 + (score * 0.1);
+                drawGrignaniPipe(p);
+
+                const birdRadius = 8;
+                if (bird.x + birdRadius > p.x && bird.x - birdRadius < p.x + p.w) {
+                    if (bird.y - birdRadius < p.top || bird.y + birdRadius > p.top + p.gap) {
+                        active = false;
+                        statusText.style.display = 'block';
+                        statusText.innerText = "FAILED";
+                    }
+                }
+
+                if (!p.scored && bird.x > p.x + p.w) {
+                    p.scored = true;
+                    score++;
+                    scoreDiv.innerText = score < 10 ? "0" + score : score;
+                }
+
+                if (p.x + p.w < -50) pipes.splice(i, 1);
+            }
+
+            bird.history.unshift(bird.y);
+            if (bird.history.length > 30) bird.history.pop();
+            
+            bird.history.forEach((yPos, i) => {
+                const baseSize = 24 + Math.sin(frames * 0.2) * 12;
+                const psychedelicPulse = intensity.level === 2 ? Math.sin(frames * 0.35 + i * 0.6) * 8 : 0;
+                let s = (baseSize + psychedelicPulse) * (1 - i / 35);
+                ctx.beginPath();
+                ctx.arc(bird.x - i * 3, yPos, s / 2, 0, Math.PI * 2);
+                ctx.fillStyle = (i + frames) % 2 === 0 ? "white" : "black";
+                ctx.fill();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = intensity.level === 2 ? 2 : 1;
+                ctx.stroke();
+
+                if(showDebug && i === 0) {
+                    ctx.beginPath();
+                    ctx.arc(bird.x, bird.y, 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            });
+
+            frames++;
+        } else {
+            ui.style.display = 'flex';
+        }
+        requestAnimationFrame(loop);
+    }
+
+    const input = (v) => isPressing = v;
+    window.onmousedown = () => input(true);
+    window.onmouseup = () => input(false);
+    window.onkeydown = (e) => { if(e.code === 'Space') input(true); };
+    window.onkeyup = (e) => { if(e.code === 'Space') input(false); };
+    window.ontouchstart = (e) => { e.preventDefault(); input(true); };
+    window.ontouchend = () => input(false);
+
+    loop();
+</script>
+</body>
+</html>

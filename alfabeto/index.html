@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typography: Never-Repeating Elite Emerald (Silent)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script>
+        let font;
+        let frase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        let indice = 0;
+        let puntiAttuali = [], puntiTarget = [];
+        let pct = 0, inPausa = false, timerPausa = 0;
+        let durataPausa = 85;
+        
+        const TOTAL_POINTS = 1400; 
+        let morphAttuale = 0;
+        let ultimoMorph = -1;
+
+        function preload() {
+            font = loadFont('https://cdnjs.cloudflare.com/ajax/libs/topcoat/0.8.0/font/SourceCodePro-Bold.otf');
+        }
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            colorMode(HSB, 360, 100, 100, 100);
+            rectMode(CENTER);
+            
+            puntiAttuali = getPuntiBilanciati(frase[0]);
+            puntiTarget = getPuntiBilanciati(frase[1]);
+            
+            selezionaNuovoMorph(); 
+        }
+
+        function draw() {
+            background(0, 0, 0, 50); 
+            let hBase = map(sin(frameCount * 0.025), -1, 1, 110, 155);
+
+            if (!inPausa) {
+                pct += 0.008; 
+                if (pct >= 1) { pct = 1; inPausa = true; timerPausa = 0; }
+            } else {
+                timerPausa++;
+                if (timerPausa > durataPausa) { 
+                    aggiornaLettera(); 
+                    inPausa = false; 
+                    pct = 0; 
+                }
+            }
+
+            translate(width / 2, height / 2);
+            
+            let ease = pct < 0.5 ? 8 * pow(pct, 4) : 1 - pow(-2 * pct + 2, 4) / 2;
+            let s = sin(pct * PI); 
+
+            scale(map(s, 0, 1, 1, 0.55));
+
+            for (let i = 0; i < TOTAL_POINTS; i++) {
+                let p1 = puntiAttuali[i];
+                let p2 = puntiTarget[i];
+                
+                let mx = lerp(p1.x, p2.x, ease);
+                let my = lerp(p1.y, p2.y, ease);
+                
+                let pos = getUniqueMorph(mx, my, i, s, morphAttuale);
+
+                push();
+                translate(pos.x, pos.y);
+                rotate(frameCount * 0.05 + i * 0.01);
+                
+                let shapeSeed = floor(frameCount * 0.2 + i * 0.1) % 4;
+                let size = max(map(s, 0, 1, 6.5, 2.5) + sin(frameCount * 0.15 + i) * 2.5, 1.5);
+                
+                stroke(hBase, 90, 95, 85);
+                strokeWeight(1.5);
+                noFill();
+                
+                disegnaForma(shapeSeed, size);
+                pop();
+            }
+        }
+
+        function disegnaForma(type, d) {
+            if (type === 0) circle(0, 0, d * 1.4);
+            else if (type === 1) rect(0, 0, d * 1.2, d * 1.2);
+            else if (type === 2) {
+                line(-d, -d, d, d);
+                line(-d, d, d, -d);
+            } else {
+                beginShape();
+                for(let i=0; i<3; i++) {
+                    let ang = TWO_PI/3 * i - HALF_PI;
+                    vertex(cos(ang)*d, sin(ang)*d);
+                }
+                endShape(CLOSE);
+            }
+        }
+
+        function getUniqueMorph(x, y, i, s, id) {
+            let nx = x, ny = y;
+            let d = dist(0, 0, x, y) + 0.1;
+            let a = atan2(y, x);
+            let f = s * 450; 
+
+            switch(id) {
+                case 0: nx += cos(a) * f; ny += sin(a) * f; break; 
+                case 1: nx += cos(a + s) * f; ny += sin(a + s) * f; break; 
+                case 2: nx += (x/d) * f * 1.5; ny += (y/d) * f * 0.2; break; 
+                case 3: ny += (y/d) * f * 1.5; nx += (x/d) * f * 0.2; break; 
+                case 4: nx *= (1 + s * 3); ny *= (1 + s * 3); break; 
+                case 5: nx += cos(a*2) * f; ny += sin(a*2) * f; break; 
+                case 6: nx += cos(a*4) * f * 0.5; ny += sin(a*4) * f * 0.5; break; 
+                case 7: nx += (x > 0 ? f : -f); ny += sin(a) * f * 0.3; break; 
+                case 8: ny += (y > 0 ? f : -f); nx += cos(a) * f * 0.3; break; 
+                case 9: nx += tan(s * 0.5) * y; ny += cos(a) * f * 0.5; break; 
+                case 10: nx += sin(d * 0.1 - frameCount * 0.2) * f * 0.5; break; 
+                case 11: nx += cos(a) * f; ny += sin(y * 0.05) * f; break; 
+                case 12: nx = lerp(x, x * 3, s); ny = lerp(y, 0, s); break; 
+                case 13: ny = lerp(y, y * 3, s); nx = lerp(x, 0, s); break; 
+                case 14: nx += cos(i) * f * 0.8; ny += sin(i) * f * 0.8; break; 
+                case 15: nx += cos(a) * (d * s * 2); ny += sin(a) * (d * s * 2); break; 
+                case 16: nx = x + pow(y, 2) * 0.005 * f; break; 
+                case 17: nx += cos(a + s * 4) * d * s; ny += sin(a + s * 4) * d * s; break; 
+                case 18: nx = x * (1 + s * (250/d)); ny = y * (1 + s * (250/d)); break; 
+                case 19: nx += (i % 2 == 0 ? f : -f); break; 
+                case 20: nx += noise(i, frameCount*0.02) * f * 2; break; 
+                case 21: nx += (x/d) * f; ny += tan(s)*100; break; 
+                case 22: nx = x * (1+s*4); ny = y / (1+s*2); break; 
+                case 23: nx += cos(a) * f; ny += (i%3==0 ? f : -f/2); break; 
+                case 24: nx += sin(y*0.1)*f; ny += cos(x*0.1)*f; break; 
+                case 25: nx = x + log(d+1)*120*s; ny = y + log(d+1)*120*s; break; 
+            }
+            return {x: nx, y: ny};
+        }
+
+        function selezionaNuovoMorph() {
+            let nuovo;
+            do { nuovo = floor(random(26)); } while (nuovo === ultimoMorph); 
+            ultimoMorph = nuovo;
+            morphAttuale = nuovo;
+        }
+
+        function aggiornaLettera() {
+            puntiAttuali = JSON.parse(JSON.stringify(puntiTarget));
+            indice = (indice + 1) % frase.length;
+            puntiTarget = getPuntiBilanciati(frase[(indice + 1) % frase.length]);
+            selezionaNuovoMorph(); 
+        }
+
+        function getPuntiBilanciati(lettera) {
+            let pts = font.textToPoints(lettera, 0, 0, 240, { sampleFactor: 0.85 });
+            let centrati = [];
+            let minX = 1e4, maxX = -1e4, minY = 1e4, maxY = -1e4;
+            pts.forEach(p => {
+                minX = min(minX, p.x); maxX = max(maxX, p.x);
+                minY = min(minY, p.y); maxY = max(maxY, p.y);
+            });
+            let ox = (minX + maxX) / 2, oy = (minY + maxY) / 2;
+            for (let i = 0; i < TOTAL_POINTS; i++) {
+                let p = pts[floor(map(i, 0, TOTAL_POINTS, 0, pts.length)) % pts.length];
+                centrati.push({ x: p.x - ox, y: p.y - oy });
+            }
+            return centrati;
+        }
+
+        function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+    </script>
+</body>
+</html>
